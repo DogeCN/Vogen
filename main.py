@@ -1,0 +1,186 @@
+import os
+
+os.environ["HF_ENDPOINT"] = "https://hf-mirror.com"
+
+from miniaudio import PlaybackDevice, stream_file
+from pocket_tts import TTSModel
+from pathlib import Path
+import scipy.io.wavfile
+import torch, time, msvcrt
+from shutil import copy2
+from dialog import get
+
+from rich.console import Console
+from rich.live import Live
+from rich.panel import Panel
+from rich.align import Align
+
+TEMP = Path(os.environ["TEMP"]) / "TTS"
+TEMP.mkdir(exist_ok=True)
+VOICES = [
+    "Alba",
+    "Marius",
+    "Javert",
+    "Jean",
+    "Fantine",
+    "Cosette",
+    "Eponine",
+    "Azelma",
+]
+
+
+console = Console()
+
+
+class Model:
+    def __init__(self):
+        self.model = TTSModel.load_model()
+        self.states = {}
+
+    def switch(self, index: int):
+        self.index = index
+        if (TEMP / f"{index}.vts").exists():
+            with open(TEMP / f"{index}.vts", "rb") as f:
+                data = torch.load(f)
+        else:
+            data = self.model.get_state_for_audio_prompt(VOICES[index].lower())
+            with open(TEMP / f"{index}.vts", "wb") as f:
+                torch.save(data, f)
+        self.states[index] = data
+
+    def generate(self, path: Path, text: str):
+        audio = self.model.generate_audio(self.states[self.index], text)
+        scipy.io.wavfile.write(path, self.model.sample_rate, audio.numpy())
+
+    def speak(self, text: str):
+        path = TEMP / f"temp.wav"
+        self.generate(path, text)
+        return path
+
+    def greet(self):
+        path = TEMP / f"{self.index}.wav"
+        if not path.exists():
+            with console.status(
+                f"[green] Generating greeting from [bold cyan]{VOICES[self.index]}[/bold cyan] ...[/green]"
+            ):
+                self.generate(
+                    path,
+                    f"Hello, I'm {VOICES[self.index]}. I hope you can understand me clearly. Thanks!",
+                )
+        return path
+
+
+class Menu:
+    def __init__(self, options, title, index=0, callback=None):
+        self.options = options
+        self.title = title
+        self.index = index
+        self.callback = callback
+        self.running = True
+        self.result = None
+
+    def draw(self):
+        lines = []
+        for i, opt in enumerate(self.options):
+            template = "[bold cyan]👉 %s[/bold cyan]" if self.index == i else "   %s"
+            lines.append(template % opt)
+        return Panel(
+            Align.center("\n".join(lines)),
+            title=self.title,
+            title_align="left",
+            border_style="bright_blue",
+            padding=(1, 2),
+        )
+
+    def run(self):
+        with Live(self.draw(), console=console, refresh_per_second=10) as live:
+            while self.running:
+                key = msvcrt.getch()
+                try:
+                    assert key == b"\xe0"
+                    self.index = (
+                        self.index + {b"H": -1, b"P": 1}[msvcrt.getch()]
+                    ) % len(self.options)
+                    live.update(self.draw())
+                    if self.callback:
+                        self.callback(self.index)
+                except:
+                    try:
+                        self.result = {b"\r": self.index, b"\x1b": None}[key]
+                        break
+                    except:
+                        ...
+        return self.result
+
+
+with console.status("[bold green] Loading ...[/bold green]"):
+    model = Model()
+    current: PlaybackDevice = None
+
+    def selecting(index):
+        global current
+        model.switch(index)
+        if current:
+            current.close()
+        device = PlaybackDevice()
+        device.start(stream_file(model.greet()))
+        current = device
+
+    selecting(0)
+
+
+try:
+    while True:
+        menu = Menu(
+            VOICES,
+            title="🎙️  Select a voice character",
+            index=model.index,
+            callback=selecting,
+        )
+        selected = menu.run()
+        if selected is None:
+            break
+
+        if current:
+            current.close()
+            current = None
+
+        selected_voice = VOICES[selected]
+        console.print(
+            f"[green]✅ Selected:[/green] [bold cyan]{selected_voice}[/bold cyan]"
+        )
+
+        text = console.input("[bold cyan]📝 Text to synthesize:[/bold cyan] ").strip()
+        if not text:
+            console.print("[dim]Returning ...[/dim]\n")
+            continue
+
+        with console.status("[bold green] Generating ...[/bold green]"):
+            path = model.speak(text)
+
+        sample_rate, audio_data = scipy.io.wavfile.read(path)
+        duration = len(audio_data) / sample_rate
+        console.print(f"[cyan]⏱️  Duration: {duration:.2f} s[/cyan]")
+
+        stream = stream_file(path)
+        device = PlaybackDevice()
+        device.start(stream)
+
+        start = time.time()
+        while time.time() - start < duration:
+            if msvcrt.kbhit() and msvcrt.getch() == b"\r":
+                break
+            time.sleep(0.01)
+        device.close()
+
+        dst = get()
+        if dst:
+            copy2(path, dst)
+            console.print("[green]✅ Completed[/green]\n")
+        else:
+            console.print("[yellow]⚠️  Cancelled[/yellow]\n")
+except:
+    pass
+finally:
+    if current:
+        current.close()

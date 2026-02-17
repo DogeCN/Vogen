@@ -1,0 +1,3 @@
+def get(filename: str | None = None) -> str | None:
+    """Show Windows save file dialog, returns the selected path (None if cancelled)."""
+    ...
