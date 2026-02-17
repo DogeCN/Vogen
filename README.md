@@ -61,22 +61,10 @@ pdm run python main.py
 ```
 Vogen/
 ├── main.py           # Main application
-├── dialog.py         # File dialog module
+├── dialog.pyd        # Rust file dialog module
 ├── main.spec         # PyInstaller configuration
 ├── install.bat       # Build script
-├── cleanup.bat       # Post-build cleanup
-└── auto_cleanup.py   # Automatic cleanup optimizer
-```
-
-### Building
-
-```bash
-# Build with PyInstaller
-install.bat
-
-# Optimize build size
-python auto_cleanup.py
-cleanup_auto.bat
+└── pyproject.toml    # Project configuration
 ```
 
 ## Aknowledgement
