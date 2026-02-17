@@ -48,13 +48,14 @@ class Model:
                 torch.save(data, f)
         self.states[index] = data
 
-    def generate(self, path: Path, text: str):
+    def generate(self, path: Path, text: str, speed: float = 1.0):
         audio = self.model.generate_audio(self.states[self.index], text)
-        scipy.io.wavfile.write(path, self.model.sample_rate, audio.numpy())
+        rate = int(self.model.sample_rate * speed)
+        scipy.io.wavfile.write(path, rate, audio.numpy())
 
-    def speak(self, text: str):
+    def speak(self, text: str, speed: float = 1.0):
         path = TEMP / f"temp.wav"
-        self.generate(path, text)
+        self.generate(path, text, speed=speed)
         return path
 
     def greet(self):
@@ -150,16 +151,26 @@ try:
             f"[green]✅ Selected:[/green] [bold cyan]{selected_voice}[/bold cyan]"
         )
 
-        text = console.input("[bold cyan]📝 Text to synthesize:[/bold cyan] ").strip()
+        text = console.input("[cyan]📝 Text to synthesize: [/cyan]").strip()
         if not text:
             console.print("[dim]Returning ...[/dim]\n")
             continue
 
-        with console.status("[bold green] Generating ...[/bold green]"):
-            path = model.speak(text)
+        speed = console.input("[dark_orange]⚡ Speed (1.0): [/dark_orange]").strip()
+        if speed:
+            try:
+                speed = float(speed)
+            except ValueError:
+                console.print("[red]⚠️  Invalid speed[/red]\n")
+                continue
+        else:
+            speed = 1.0
 
-        sample_rate, audio_data = scipy.io.wavfile.read(path)
-        duration = len(audio_data) / sample_rate
+        with console.status("[bold green] Generating ...[/bold green]"):
+            path = model.speak(text, speed)
+
+        rate, audio = scipy.io.wavfile.read(path)
+        duration = len(audio) / rate
         console.print(f"[cyan]⏱️  Duration: {duration:.2f} s[/cyan]")
 
         stream = stream_file(path)
@@ -179,8 +190,8 @@ try:
             console.print("[green]✅ Completed[/green]\n")
         else:
             console.print("[yellow]⚠️  Cancelled[/yellow]\n")
-except:
-    pass
+except Exception as e:
+    console.print(f"[red]❌ Error: {e}[/red]\n")
 finally:
     if current:
         current.close()
