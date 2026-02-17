@@ -17,6 +17,12 @@ from rich.align import Align
 
 TEMP = Path(os.environ["TEMP"]) / "Vogen"
 TEMP.mkdir(exist_ok=True)
+for f in TEMP.glob("temp_*.wav"):
+    try:
+        f.unlink()
+    except:
+        ...
+
 VOICES = [
     "Alba",
     "Marius",
@@ -51,8 +57,7 @@ class Model:
     def generate(self, path: Path, text: str, speed: float = 1.0):
         audio = self.model.generate_audio(self.states[self.index], text)
         rate = int(self.model.sample_rate * speed)
-        with open(path, "wb") as f:
-            scipy.io.wavfile.write(f, rate, audio.numpy())
+        scipy.io.wavfile.write(path, rate, audio.numpy())
 
     def speak(self, text: str, speed: float = 1.0):
         path = TEMP / f"temp_{time.time_ns()}.wav"
