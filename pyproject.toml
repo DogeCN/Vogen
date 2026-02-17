@@ -1,6 +1,6 @@
 [project]
 name = "Vogen"
-version = "1.1.0"
+version = "1.2.0"
 description = "AI-powered text-to-speech tool with voice selection"
 authors = [{ name = "DogeCN", email = "hark2009lbf@outlook.com" }]
 dependencies = [
@@ -8,7 +8,8 @@ dependencies = [
     "scipy>=1.17.0",
     "rich>=14.3.2",
     "keyboard>=0.13.5",
-    "simpleaudio>=1.0.4",
+    "librosa>=0.11.0",
+    "miniaudio>=1.61",
 ]
 requires-python = "==3.12.*"
 readme = "README.md"
@@ -19,6 +20,4 @@ license = { text = "MIT" }
 distribution = false
 
 [dependency-groups]
-dev = [
-    "pyinstaller>=6.19.0",
-]
+dev = ["pyinstaller>=6.19.0"]

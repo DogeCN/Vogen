@@ -15,7 +15,7 @@ from rich.live import Live
 from rich.panel import Panel
 from rich.align import Align
 
-TEMP = Path(os.environ["TEMP"]) / "TTS"
+TEMP = Path(os.environ["TEMP"]) / "Vogen"
 TEMP.mkdir(exist_ok=True)
 VOICES = [
     "Alba",
@@ -130,8 +130,8 @@ with console.status("[bold green] Loading ...[/bold green]"):
     selecting(0)
 
 
-try:
-    while True:
+while True:
+    try:
         menu = Menu(
             VOICES,
             title="🎙️  Select a voice character",
@@ -190,8 +190,8 @@ try:
             console.print("[green]✅ Completed[/green]\n")
         else:
             console.print("[yellow]⚠️  Cancelled[/yellow]\n")
-except Exception as e:
-    console.print(f"[red]❌ Error: {e}[/red]\n")
-finally:
-    if current:
-        current.close()
+    except Exception as e:
+        console.print(f"[red]❌ Error: {e}[/red]\n")
+
+if current:
+    current.close()
