@@ -51,10 +51,11 @@ class Model:
     def generate(self, path: Path, text: str, speed: float = 1.0):
         audio = self.model.generate_audio(self.states[self.index], text)
         rate = int(self.model.sample_rate * speed)
-        scipy.io.wavfile.write(path, rate, audio.numpy())
+        with open(path, "wb") as f:
+            scipy.io.wavfile.write(f, rate, audio.numpy())
 
     def speak(self, text: str, speed: float = 1.0):
-        path = TEMP / f"temp.wav"
+        path = TEMP / f"temp_{time.time_ns()}.wav"
         self.generate(path, text, speed=speed)
         return path
 
@@ -97,20 +98,21 @@ class Menu:
         with Live(self.draw(), console=console, refresh_per_second=10) as live:
             while self.running:
                 key = msvcrt.getch()
-                try:
-                    assert key == b"\xe0"
-                    self.index = (
-                        self.index + {b"H": -1, b"P": 1}[msvcrt.getch()]
-                    ) % len(self.options)
-                    live.update(self.draw())
-                    if self.callback:
-                        self.callback(self.index)
-                except:
-                    try:
-                        self.result = {b"\r": self.index, b"\x1b": None}[key]
-                        break
-                    except:
-                        ...
+                if key == b"\r":
+                    self.result = self.index
+                    break
+                elif key == b"\x1b":
+                    self.result = None
+                    break
+                elif key == b"\xe0":
+                    arrow = msvcrt.getch()
+                    if arrow in (b"H", b"P"):
+                        self.index = (self.index + {b"H": -1, b"P": 1}[arrow]) % len(
+                            self.options
+                        )
+                        live.update(self.draw())
+                        if self.callback:
+                            self.callback(self.index)
         return self.result
 
 
