@@ -67,6 +67,6 @@ Vogen/
 └── pyproject.toml    # Project configuration
 ```
 
-## Aknowledgement
+## Lisence
 
-[Pocket TTS](https://kyutai.org/pocket-tts)
+This project uses Pocket TTS which is licensed under the MIT License. See [Pocket TTS](https://kyutai.org/pocket-tts) for more details.
